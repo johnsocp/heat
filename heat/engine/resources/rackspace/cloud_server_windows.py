@@ -292,6 +292,7 @@ dir=in action=allow protocol=TCP localport=445
             userdata = nova_utils.build_userdata(self, raw_userdata)
 
             run_script = '' # TODO: Define the bootstrap script
+            run_command = '' # TODO: Define arguments for boot script
             
 
             (self.status, self.output) = psexec_run_script('Administrator',
