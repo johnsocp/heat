@@ -81,7 +81,10 @@ service_opts = [
                help='Instance connection to cfn/cw API validate certs if ssl'),
     cfg.StrOpt('heat_stack_user_role',
                default="heat_stack_user",
-               help='Keystone role for heat template-defined users')]
+               help='Keystone role for heat template-defined users'),
+    cfg.IntOpt('max_template_size',
+               default=524288,
+               help='Maximum raw byte size of any template.')]
 
 db_opts = [
     cfg.StrOpt('sql_connection',
@@ -101,7 +104,10 @@ engine_opts = [
                help='Driver to use for controlling instances'),
     cfg.ListOpt('plugin_dirs',
                 default=['/usr/lib64/heat', '/usr/lib/heat'],
-                help='List of directories to search for Plugins')]
+                help='List of directories to search for Plugins'),
+    cfg.StrOpt('environment_dir',
+               default='/etc/heat/environment.d',
+               help='The directory to search for environment files')]
 
 rpc_opts = [
     cfg.StrOpt('host',
@@ -117,8 +123,9 @@ auth_password_opts = [
                 help=_('Allow orchestration of multiple clouds')),
     cfg.ListOpt('allowed_auth_uris',
                 default=[],
-                help=_('Allowed targets for auth_uri when multi_cloud is '
-                       'enabled.  If empty, all targets will be allowed.'))]
+                help=_('Allowed keystone endpoints for auth_uri when '
+                       'multi_cloud is enabled. At least one endpoint needs '
+                       'to be specified.'))]
 
 cfg.CONF.register_opts(db_opts)
 cfg.CONF.register_opts(engine_opts)

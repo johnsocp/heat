@@ -142,7 +142,8 @@ blarg: wibble
 
     def test_parameters(self):
         params = {'foo': 'bar', 'blarg': 'wibble'}
-        body = {'parameters': params}
+        body = {'parameters': params,
+                'resource_registry': {}}
         data = stacks.InstantiationData(body)
         self.assertEqual(data.environment(), body)
 
@@ -156,7 +157,8 @@ blarg: wibble
         body = {'parameters': {'foo': 'bar'},
                 'environment': {'parameters': {'blarg': 'wibble'}}}
         expect = {'parameters': {'blarg': 'wibble',
-                                 'foo': 'bar'}}
+                                 'foo': 'bar'},
+                  'resource_registry': {}}
         data = stacks.InstantiationData(body)
         self.assertEqual(data.environment(), expect)
 
@@ -169,12 +171,14 @@ blarg: wibble
                                                'tester': 'fail'}}}
         expect = {'parameters': {'blarg': 'wibble',
                                  'foo': 'bar',
-                                 'tester': 'Yes'}}
+                                 'tester': 'Yes'},
+                  'resource_registry': {}}
         data = stacks.InstantiationData(body)
         self.assertEqual(data.environment(), expect)
 
     def test_environment_bad_format(self):
-        body = {'environment': {'somethingnotsupported': {'blarg': 'wibble'}}}
+        env = {'somethingnotsupported': {'blarg': 'wibble'}}
+        body = {'environment': json.dumps(env)}
         data = stacks.InstantiationData(body)
         self.assertRaises(webob.exc.HTTPBadRequest, data.environment)
 
@@ -182,7 +186,9 @@ blarg: wibble
         env = {'foo': 'bar', 'blarg': 'wibble'}
         body = {'not the environment': env}
         data = stacks.InstantiationData(body)
-        self.assertEqual(data.environment(), {'parameters': {}})
+        self.assertEqual(data.environment(),
+                         {'parameters': {},
+                          'resource_registry': {}})
 
     def test_args(self):
         body = {
@@ -443,7 +449,8 @@ class StackControllerTest(ControllerTest, HeatTestCase):
                   'method': 'create_stack',
                   'args': {'stack_name': identity.stack_name,
                            'template': template,
-                           'params': {'parameters': parameters},
+                           'params': {'parameters': parameters,
+                                      'resource_registry': {}},
                            'files': {},
                            'args': {'timeout_mins': 30}},
                   'version': self.api_version},
@@ -480,7 +487,8 @@ class StackControllerTest(ControllerTest, HeatTestCase):
                   'method': 'create_stack',
                   'args': {'stack_name': identity.stack_name,
                            'template': template,
-                           'params': {'parameters': parameters},
+                           'params': {'parameters': parameters,
+                                      'resource_registry': {}},
                            'files': {'my.yaml': 'This is the file contents.'},
                            'args': {'timeout_mins': 30}},
                   'version': self.api_version},
@@ -517,7 +525,8 @@ class StackControllerTest(ControllerTest, HeatTestCase):
                   'method': 'create_stack',
                   'args': {'stack_name': stack_name,
                            'template': template,
-                           'params': {'parameters': parameters},
+                           'params': {'parameters': parameters,
+                                      'resource_registry': {}},
                            'files': {},
                            'args': {'timeout_mins': 30}},
                   'version': self.api_version},
@@ -527,7 +536,8 @@ class StackControllerTest(ControllerTest, HeatTestCase):
                   'method': 'create_stack',
                   'args': {'stack_name': stack_name,
                            'template': template,
-                           'params': {'parameters': parameters},
+                           'params': {'parameters': parameters,
+                                      'resource_registry': {}},
                            'files': {},
                            'args': {'timeout_mins': 30}},
                   'version': self.api_version},
@@ -537,7 +547,8 @@ class StackControllerTest(ControllerTest, HeatTestCase):
                   'method': 'create_stack',
                   'args': {'stack_name': stack_name,
                            'template': template,
-                           'params': {'parameters': parameters},
+                           'params': {'parameters': parameters,
+                                      'resource_registry': {}},
                            'files': {},
                            'args': {'timeout_mins': 30}},
                   'version': self.api_version},
@@ -584,7 +595,8 @@ class StackControllerTest(ControllerTest, HeatTestCase):
                   'method': 'create_stack',
                   'args': {'stack_name': stack_name,
                            'template': template,
-                           'params': {'parameters': parameters},
+                           'params': {'parameters': parameters,
+                                      'resource_registry': {}},
                            'files': {},
                            'args': {'timeout_mins': 30}},
                   'version': self.api_version},
@@ -618,7 +630,8 @@ class StackControllerTest(ControllerTest, HeatTestCase):
                   'method': 'create_stack',
                   'args': {'stack_name': stack_name,
                            'template': template,
-                           'params': {'parameters': parameters},
+                           'params': {'parameters': parameters,
+                                      'resource_registry': {}},
                            'files': {},
                            'args': {'timeout_mins': 30}},
                   'version': self.api_version},
@@ -957,7 +970,8 @@ class StackControllerTest(ControllerTest, HeatTestCase):
                   'method': 'update_stack',
                   'args': {'stack_identity': dict(identity),
                            'template': template,
-                           'params': {'parameters': parameters},
+                           'params': {'parameters': parameters,
+                                      'resource_registry': {}},
                            'files': {},
                            'args': {'timeout_mins': 30}},
                   'version': self.api_version},
@@ -992,7 +1006,8 @@ class StackControllerTest(ControllerTest, HeatTestCase):
                   'method': 'update_stack',
                   'args': {'stack_identity': dict(identity),
                            'template': template,
-                           'params': {u'parameters': parameters},
+                           'params': {u'parameters': parameters,
+                                      u'resource_registry': {}},
                            'files': {},
                            'args': {'timeout_mins': 30}},
                   'version': self.api_version},
@@ -1299,7 +1314,7 @@ class ResourceControllerTest(ControllerTest, HeatTestCase):
             {
                 u'resource_identity': dict(res_identity),
                 u'stack_name': stack_identity.stack_name,
-                u'logical_resource_id': res_name,
+                u'resource_name': res_name,
                 u'resource_status_reason': None,
                 u'updated_time': u'2012-07-23T13:06:00Z',
                 u'stack_identity': stack_identity,
@@ -1328,7 +1343,7 @@ class ResourceControllerTest(ControllerTest, HeatTestCase):
                                       'rel': 'self'},
                                      {'href': self._url(stack_identity),
                                       'rel': 'stack'}],
-                           u'logical_resource_id': res_name,
+                           u'resource_name': res_name,
                            u'resource_status_reason': None,
                            u'updated_time': u'2012-07-23T13:06:00Z',
                            u'resource_status': u'CREATE_COMPLETE',
@@ -1378,7 +1393,7 @@ class ResourceControllerTest(ControllerTest, HeatTestCase):
             u'description': u'',
             u'resource_identity': dict(res_identity),
             u'stack_name': stack_identity.stack_name,
-            u'logical_resource_id': res_name,
+            u'resource_name': res_name,
             u'resource_status_reason': None,
             u'updated_time': u'2012-07-23T13:06:00Z',
             u'stack_identity': dict(stack_identity),
@@ -1411,7 +1426,7 @@ class ResourceControllerTest(ControllerTest, HeatTestCase):
                     {'href': self._url(stack_identity), 'rel': 'stack'},
                 ],
                 u'description': u'',
-                u'logical_resource_id': res_name,
+                u'resource_name': res_name,
                 u'resource_status_reason': None,
                 u'updated_time': u'2012-07-23T13:06:00Z',
                 u'resource_status': u'CREATE_COMPLETE',
@@ -1530,7 +1545,7 @@ class ResourceControllerTest(ControllerTest, HeatTestCase):
             u'description': u'',
             u'resource_identity': dict(res_identity),
             u'stack_name': stack_identity.stack_name,
-            u'logical_resource_id': res_name,
+            u'resource_name': res_name,
             u'resource_status_reason': None,
             u'updated_time': u'2012-07-23T13:06:00Z',
             u'stack_identity': dict(stack_identity),
@@ -1658,7 +1673,7 @@ class EventControllerTest(ControllerTest, HeatTestCase):
                 u'stack_name': u'wordpress',
                 u'event_time': u'2012-07-23T13:05:39Z',
                 u'stack_identity': dict(stack_identity),
-                u'logical_resource_id': res_name,
+                u'resource_name': res_name,
                 u'resource_status_reason': u'state changed',
                 u'event_identity': dict(ev_identity),
                 u'resource_action': u'CREATE',
@@ -1671,7 +1686,7 @@ class EventControllerTest(ControllerTest, HeatTestCase):
                 u'stack_name': u'wordpress',
                 u'event_time': u'2012-07-23T13:05:39Z',
                 u'stack_identity': dict(stack_identity),
-                u'logical_resource_id': 'SomeOtherResource',
+                u'resource_name': 'SomeOtherResource',
                 u'resource_status_reason': u'state changed',
                 u'event_identity': dict(ev_identity),
                 u'resource_action': u'CREATE',
@@ -1704,7 +1719,7 @@ class EventControllerTest(ControllerTest, HeatTestCase):
                         {'href': self._url(res_identity), 'rel': 'resource'},
                         {'href': self._url(stack_identity), 'rel': 'stack'},
                     ],
-                    u'logical_resource_id': res_name,
+                    u'resource_name': res_name,
                     u'resource_status_reason': u'state changed',
                     u'event_time': u'2012-07-23T13:05:39Z',
                     u'resource_status': u'CREATE_IN_PROGRESS',
@@ -1733,7 +1748,7 @@ class EventControllerTest(ControllerTest, HeatTestCase):
                 u'stack_name': u'wordpress',
                 u'event_time': u'2012-07-23T13:05:39Z',
                 u'stack_identity': dict(stack_identity),
-                u'logical_resource_id': res_name,
+                u'resource_name': res_name,
                 u'resource_status_reason': u'state changed',
                 u'event_identity': dict(ev_identity),
                 u'resource_action': u'CREATE',
@@ -1765,7 +1780,7 @@ class EventControllerTest(ControllerTest, HeatTestCase):
                         {'href': self._url(res_identity), 'rel': 'resource'},
                         {'href': self._url(stack_identity), 'rel': 'stack'},
                     ],
-                    u'logical_resource_id': res_name,
+                    u'resource_name': res_name,
                     u'resource_status_reason': u'state changed',
                     u'event_time': u'2012-07-23T13:05:39Z',
                     u'resource_status': u'CREATE_IN_PROGRESS',
@@ -1821,7 +1836,7 @@ class EventControllerTest(ControllerTest, HeatTestCase):
                 u'stack_name': u'wordpress',
                 u'event_time': u'2012-07-23T13:05:39Z',
                 u'stack_identity': dict(stack_identity),
-                u'logical_resource_id': 'SomeOtherResource',
+                u'resource_name': 'SomeOtherResource',
                 u'resource_status_reason': u'state changed',
                 u'event_identity': dict(ev_identity),
                 u'resource_action': u'CREATE',
@@ -1868,7 +1883,7 @@ class EventControllerTest(ControllerTest, HeatTestCase):
                 u'stack_name': u'wordpress',
                 u'event_time': u'2012-07-23T13:05:39Z',
                 u'stack_identity': dict(stack_identity),
-                u'logical_resource_id': res_name,
+                u'resource_name': res_name,
                 u'resource_status_reason': u'state changed',
                 u'event_identity': dict(ev1_identity),
                 u'resource_action': u'CREATE',
@@ -1881,7 +1896,7 @@ class EventControllerTest(ControllerTest, HeatTestCase):
                 u'stack_name': u'wordpress',
                 u'event_time': u'2012-07-23T13:06:00Z',
                 u'stack_identity': dict(stack_identity),
-                u'logical_resource_id': res_name,
+                u'resource_name': res_name,
                 u'resource_status_reason': u'state changed',
                 u'event_identity': dict(ev_identity),
                 u'resource_action': u'CREATE',
@@ -1915,7 +1930,7 @@ class EventControllerTest(ControllerTest, HeatTestCase):
                     {'href': self._url(res_identity), 'rel': 'resource'},
                     {'href': self._url(stack_identity), 'rel': 'stack'},
                 ],
-                u'logical_resource_id': res_name,
+                u'resource_name': res_name,
                 u'resource_status_reason': u'state changed',
                 u'event_time': u'2012-07-23T13:06:00Z',
                 u'resource_status': u'CREATE_COMPLETE',
@@ -1947,7 +1962,7 @@ class EventControllerTest(ControllerTest, HeatTestCase):
                 u'stack_name': u'wordpress',
                 u'event_time': u'2012-07-23T13:05:39Z',
                 u'stack_identity': dict(stack_identity),
-                u'logical_resource_id': res_name,
+                u'resource_name': res_name,
                 u'resource_status_reason': u'state changed',
                 u'event_identity': dict(ev_identity),
                 u'resource_action': u'CREATE',
@@ -1992,7 +2007,7 @@ class EventControllerTest(ControllerTest, HeatTestCase):
                 u'stack_name': u'wordpress',
                 u'event_time': u'2012-07-23T13:05:39Z',
                 u'stack_identity': dict(stack_identity),
-                u'logical_resource_id': 'SomeOtherResourceName',
+                u'resource_name': 'SomeOtherResourceName',
                 u'resource_status_reason': u'state changed',
                 u'event_identity': dict(ev_identity),
                 u'resource_action': u'CREATE',

@@ -15,8 +15,9 @@
 
 import testtools
 
+from heat.engine import parameters
 from heat.engine import properties
-from heat.engine import resource
+from heat.engine import resources
 from heat.common import exception
 
 
@@ -184,7 +185,7 @@ class SchemaTest(testtools.TestCase):
         self.assertEqual(d, dict(l))
 
     def test_all_resource_schemata(self):
-        for resource_type in resource._resource_classes.itervalues():
+        for resource_type in resources.global_env().get_types():
             for schema in getattr(resource_type,
                                   'properties_schema',
                                   {}).itervalues():
@@ -402,6 +403,257 @@ class SchemaTest(testtools.TestCase):
         self.assertRaises(properties.InvalidPropertySchemaError,
                           properties.Schema.from_legacy,
                           {'Type': 'String', 'Foo': 'Bar'})
+
+    def test_from_string_param(self):
+        description = "WebServer EC2 instance type"
+        allowed_values = ["t1.micro", "m1.small", "m1.large", "m1.xlarge",
+                          "m2.xlarge", "m2.2xlarge", "m2.4xlarge",
+                          "c1.medium", "c1.xlarge", "cc1.4xlarge"]
+        constraint_desc = "Must be a valid EC2 instance type."
+        param = parameters.ParamSchema({
+            "Type": "String",
+            "Description": description,
+            "Default": "m1.large",
+            "AllowedValues": allowed_values,
+            "ConstraintDescription": constraint_desc,
+        })
+
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertEqual(properties.STRING, schema.type)
+        self.assertEqual(description, schema.description)
+        self.assertEqual(None, schema.default)
+        self.assertFalse(schema.required)
+        self.assertEqual(1, len(schema.constraints))
+
+        allowed_constraint = schema.constraints[0]
+
+        self.assertEqual(tuple(allowed_values), allowed_constraint.allowed)
+        self.assertEqual(constraint_desc, allowed_constraint.description)
+
+    def test_from_string_allowed_pattern(self):
+        description = "WebServer EC2 instance type"
+        allowed_pattern = "[A-Za-z0-9]*"
+        constraint_desc = "Must contain only alphanumeric characters."
+        param = parameters.ParamSchema({
+            "Type": "String",
+            "Description": description,
+            "Default": "m1.large",
+            "AllowedPattern": allowed_pattern,
+            "ConstraintDescription": constraint_desc,
+        })
+
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertEqual(properties.STRING, schema.type)
+        self.assertEqual(description, schema.description)
+        self.assertEqual(None, schema.default)
+        self.assertFalse(schema.required)
+        self.assertEqual(1, len(schema.constraints))
+
+        allowed_constraint = schema.constraints[0]
+
+        self.assertEqual(allowed_pattern, allowed_constraint.pattern)
+        self.assertEqual(constraint_desc, allowed_constraint.description)
+
+    def test_from_string_multi_constraints(self):
+        description = "WebServer EC2 instance type"
+        allowed_pattern = "[A-Za-z0-9]*"
+        constraint_desc = "Must contain only alphanumeric characters."
+        param = parameters.ParamSchema({
+            "Type": "String",
+            "Description": description,
+            "Default": "m1.large",
+            "MinLength": "7",
+            "AllowedPattern": allowed_pattern,
+            "ConstraintDescription": constraint_desc,
+        })
+
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertEqual(properties.STRING, schema.type)
+        self.assertEqual(description, schema.description)
+        self.assertEqual(None, schema.default)
+        self.assertFalse(schema.required)
+        self.assertEqual(2, len(schema.constraints))
+
+        len_constraint = schema.constraints[0]
+        allowed_constraint = schema.constraints[1]
+
+        self.assertEqual(7, len_constraint.min)
+        self.assertEqual(None, len_constraint.max)
+        self.assertEqual(allowed_pattern, allowed_constraint.pattern)
+        self.assertEqual(constraint_desc, allowed_constraint.description)
+
+    def test_from_param_string_min_len(self):
+        param = parameters.ParamSchema({
+            "Description": "WebServer EC2 instance type",
+            "Type": "String",
+            "Default": "m1.large",
+            "MinLength": "7",
+        })
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertFalse(schema.required)
+        self.assertEqual(1, len(schema.constraints))
+
+        len_constraint = schema.constraints[0]
+
+        self.assertEqual(7, len_constraint.min)
+        self.assertEqual(None, len_constraint.max)
+
+    def test_from_param_string_max_len(self):
+        param = parameters.ParamSchema({
+            "Description": "WebServer EC2 instance type",
+            "Type": "String",
+            "Default": "m1.large",
+            "MaxLength": "11",
+        })
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertFalse(schema.required)
+        self.assertEqual(1, len(schema.constraints))
+
+        len_constraint = schema.constraints[0]
+
+        self.assertEqual(None, len_constraint.min)
+        self.assertEqual(11, len_constraint.max)
+
+    def test_from_param_string_min_max_len(self):
+        param = parameters.ParamSchema({
+            "Description": "WebServer EC2 instance type",
+            "Type": "String",
+            "Default": "m1.large",
+            "MinLength": "7",
+            "MaxLength": "11",
+        })
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertFalse(schema.required)
+        self.assertEqual(1, len(schema.constraints))
+
+        len_constraint = schema.constraints[0]
+
+        self.assertEqual(7, len_constraint.min)
+        self.assertEqual(11, len_constraint.max)
+
+    def test_from_param_no_default(self):
+        param = parameters.ParamSchema({
+            "Description": "WebServer EC2 instance type",
+            "Type": "String",
+        })
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertTrue(schema.required)
+        self.assertEqual(None, schema.default)
+        self.assertEqual(0, len(schema.constraints))
+
+    def test_from_number_param_min(self):
+        default = "42"
+        param = parameters.ParamSchema({
+            "Type": "Number",
+            "Default": default,
+            "MinValue": "10",
+        })
+
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertEqual(properties.NUMBER, schema.type)
+        self.assertEqual(None, schema.default)
+        self.assertFalse(schema.required)
+        self.assertEqual(1, len(schema.constraints))
+
+        value_constraint = schema.constraints[0]
+
+        self.assertEqual(10, value_constraint.min)
+        self.assertEqual(None, value_constraint.max)
+
+    def test_from_number_param_max(self):
+        default = "42"
+        param = parameters.ParamSchema({
+            "Type": "Number",
+            "Default": default,
+            "MaxValue": "100",
+        })
+
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertEqual(properties.NUMBER, schema.type)
+        self.assertEqual(None, schema.default)
+        self.assertFalse(schema.required)
+        self.assertEqual(1, len(schema.constraints))
+
+        value_constraint = schema.constraints[0]
+
+        self.assertEqual(None, value_constraint.min)
+        self.assertEqual(100, value_constraint.max)
+
+    def test_from_number_param_min_max(self):
+        default = "42"
+        param = parameters.ParamSchema({
+            "Type": "Number",
+            "Default": default,
+            "MinValue": "10",
+            "MaxValue": "100",
+        })
+
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertEqual(properties.NUMBER, schema.type)
+        self.assertEqual(None, schema.default)
+        self.assertFalse(schema.required)
+        self.assertEqual(1, len(schema.constraints))
+
+        value_constraint = schema.constraints[0]
+
+        self.assertEqual(10, value_constraint.min)
+        self.assertEqual(100, value_constraint.max)
+
+    def test_from_number_param_allowed_vals(self):
+        default = "42"
+        constraint_desc = "The quick brown fox jumps over the lazy dog."
+        param = parameters.ParamSchema({
+            "Type": "Number",
+            "Default": default,
+            "AllowedValues": ["10", "42", "100"],
+            "ConstraintDescription": constraint_desc,
+        })
+
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertEqual(properties.NUMBER, schema.type)
+        self.assertEqual(None, schema.default)
+        self.assertFalse(schema.required)
+        self.assertEqual(1, len(schema.constraints))
+
+        allowed_constraint = schema.constraints[0]
+
+        self.assertEqual(('10', '42', '100'), allowed_constraint.allowed)
+        self.assertEqual(constraint_desc, allowed_constraint.description)
+
+    def test_from_list_param(self):
+        param = parameters.ParamSchema({
+            "Type": "CommaDelimitedList",
+            "Default": "foo,bar,baz"
+        })
+
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertEqual(properties.LIST, schema.type)
+        self.assertEqual(None, schema.default)
+        self.assertFalse(schema.required)
+
+    def test_from_json_param(self):
+        param = parameters.ParamSchema({
+            "Type": "Json",
+            "Default": {"foo": "bar", "blarg": "wibble"}
+        })
+
+        schema = properties.Schema.from_parameter(param)
+
+        self.assertEqual(properties.MAP, schema.type)
+        self.assertEqual(None, schema.default)
+        self.assertFalse(schema.required)
 
 
 class PropertyTest(testtools.TestCase):
@@ -690,26 +942,6 @@ class PropertyTest(testtools.TestCase):
         p = properties.Property({'Type': 'List', 'Schema': list_schema})
         self.assertRaises(TypeError, p.validate_data, [42, 'fish'])
 
-    def test_schema_from_param(self):
-        param = {
-            "Description": "WebServer EC2 instance type",
-            "Type": "String",
-            "Default": "m1.large",
-            "AllowedValues": ["t1.micro", "m1.small", "m1.large", "m1.xlarge",
-                              "m2.xlarge", "m2.2xlarge", "m2.4xlarge",
-                              "c1.medium", "c1.xlarge", "cc1.4xlarge"],
-            "ConstraintDescription": "must be a valid EC2 instance type."
-        }
-        expected = {
-            'Default': 'm1.large',
-            'Type': 'String',
-            'AllowedValues': ['t1.micro', 'm1.small', 'm1.large', 'm1.xlarge',
-                              'm2.xlarge', 'm2.2xlarge', 'm2.4xlarge',
-                              'c1.medium', 'c1.xlarge', 'cc1.4xlarge']
-        }
-        self.assertEqual(expected,
-                         properties.Property.schema_from_param(param))
-
 
 class PropertiesTest(testtools.TestCase):
     def setUp(self):
@@ -918,69 +1150,89 @@ class PropertiesTest(testtools.TestCase):
         }
         expected = {
             "DBUsername": {
-                "Default": "admin",
-                "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
-                "MaxLength": "16",
-                "Type": "String",
-                "MinLength": "1"
+                "type": "string",
+                "description": "The WordPress database admin account username",
+                "required": False,
+                "constraints": [
+                    {"length": {"min": 1, "max": 16}},
+                    {"allowed_pattern": "[a-zA-Z][a-zA-Z0-9]*",
+                     "description": "must begin with a letter and contain "
+                                    "only alphanumeric characters."},
+                ]
             },
             "LinuxDistribution": {
-                "Default": "F17",
-                "Type": "String",
-                "AllowedValues": [
-                    "F18",
-                    "F17",
-                    "U10",
-                    "RHEL-6.1",
-                    "RHEL-6.2",
-                    "RHEL-6.3"
+                "type": "string",
+                "description": "Distribution of choice",
+                "required": False,
+                "constraints": [
+                    {"allowed_values": ["F18", "F17", "U10",
+                                        "RHEL-6.1", "RHEL-6.2", "RHEL-6.3"]}
                 ]
             },
             "InstanceType": {
-                "Default": "m1.large",
-                "Type": "String",
-                "AllowedValues": [
-                    "t1.micro",
-                    "m1.small",
-                    "m1.large",
-                    "m1.xlarge",
-                    "m2.xlarge",
-                    "m2.2xlarge",
-                    "m2.4xlarge",
-                    "c1.medium",
-                    "c1.xlarge",
-                    "cc1.4xlarge"
+                "type": "string",
+                "description": "WebServer EC2 instance type",
+                "required": False,
+                "constraints": [
+                    {"allowed_values": ["t1.micro",
+                                        "m1.small",
+                                        "m1.large",
+                                        "m1.xlarge",
+                                        "m2.xlarge",
+                                        "m2.2xlarge",
+                                        "m2.4xlarge",
+                                        "c1.medium",
+                                        "c1.xlarge",
+                                        "cc1.4xlarge"],
+                     "description": "must be a valid EC2 instance type."},
                 ]
             },
             "DBRootPassword": {
-                "Default": "admin",
-                "AllowedPattern": "[a-zA-Z0-9]*",
-                "MaxLength": "41",
-                "Type": "String",
-                "MinLength": "1"
+                "type": "string",
+                "description": "Root password for MySQL",
+                "required": False,
+                "constraints": [
+                    {"length": {"min": 1, "max": 41}},
+                    {"allowed_pattern": "[a-zA-Z0-9]*",
+                     "description": "must contain only alphanumeric "
+                                    "characters."},
+                ]
             },
             "KeyName": {
-                "Required": "true",
-                "Type": "String"
+                "type": "string",
+                "description": ("Name of an existing EC2 KeyPair to enable "
+                                "SSH access to the instances"),
+                "required": True,
             },
             "DBPassword": {
-                "Default": "admin",
-                "AllowedPattern": "[a-zA-Z0-9]*",
-                "MaxLength": "41",
-                "Type": "String",
-                "MinLength": "1"
+                "type": "string",
+                "description": "The WordPress database admin account password",
+                "required": False,
+                "constraints": [
+                    {"length": {"min": 1, "max": 41}},
+                    {"allowed_pattern": "[a-zA-Z0-9]*",
+                     "description": "must contain only alphanumeric "
+                                    "characters."},
+                ]
             },
             "DBName": {
-                "Default": "wordpress",
-                "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
-                "MaxLength": "64",
-                "Type": "String",
-                "MinLength": "1"
-            }
+                "type": "string",
+                "description": "The WordPress database name",
+                "required": False,
+                "constraints": [
+                    {"length": {"min": 1, "max": 64}},
+                    {"allowed_pattern": "[a-zA-Z][a-zA-Z0-9]*",
+                     "description": "must begin with a letter and contain "
+                                    "only alphanumeric characters."},
+                ]
+            },
         }
+        params = dict((n, parameters.ParamSchema(s)) for n, s
+                      in params_snippet.items())
+        props_schemata = properties.Properties.schema_from_params(params)
+
         self.assertEqual(expected,
-                         (properties.Properties
-                          .schema_from_params(params_snippet)))
+                         dict((n, dict(s)) for n, s in props_schemata.items()))
 
 
 class PropertiesValidationTest(testtools.TestCase):

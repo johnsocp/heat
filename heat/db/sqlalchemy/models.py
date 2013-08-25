@@ -230,7 +230,7 @@ class Event(BASE, HeatBase):
 
     resource_action = sqlalchemy.Column(sqlalchemy.String)
     resource_status = sqlalchemy.Column(sqlalchemy.String)
-    logical_resource_id = sqlalchemy.Column(sqlalchemy.String)
+    resource_name = sqlalchemy.Column(sqlalchemy.String)
     physical_resource_id = sqlalchemy.Column(sqlalchemy.String)
     resource_status_reason = sqlalchemy.Column(sqlalchemy.String)
     resource_type = sqlalchemy.Column(sqlalchemy.String)
@@ -277,7 +277,7 @@ class Resource(BASE, HeatBase):
     stack = relationship(Stack, backref=backref('resources'))
     data = relationship(ResourceData,
                         cascade="all,delete",
-                        backref=backref('resource', lazy='joined'))
+                        backref=backref('resource'))
 
 
 class WatchRule(BASE, HeatBase):

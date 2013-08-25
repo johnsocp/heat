@@ -383,16 +383,17 @@ class Stack(object):
                                'State invalid for %s' % action)
                 return
 
-        current_env = self.env
-        self.env = newstack.env
-        self.parameters = newstack.parameters
-
         self.state_set(self.UPDATE, self.IN_PROGRESS,
                        'Stack %s started' % action)
 
+        oldstack = Stack(self.context, self.name, self.t, self.env)
         try:
-            update_task = update.StackUpdate(self, newstack)
+            update_task = update.StackUpdate(self, newstack, oldstack)
             updater = scheduler.TaskRunner(update_task)
+
+            self.env = newstack.env
+            self.parameters = newstack.parameters
+
             try:
                 updater(timeout=self.timeout_secs())
             finally:
@@ -416,8 +417,6 @@ class Stack(object):
                 # If rollback is enabled, we do another update, with the
                 # existing template, so we roll back to the original state
                 if not self.disable_rollback:
-                    oldstack = Stack(self.context, self.name, self.t,
-                                     current_env)
                     self.update(oldstack, action=self.ROLLBACK)
                     return
 
@@ -574,6 +573,7 @@ def resolve_runtime_data(template, resources, snippet):
                       functools.partial(template.resolve_attributes,
                                         resources=resources),
                       template.resolve_split,
+                      template.resolve_member_list_to_map,
                       template.resolve_select,
                       template.resolve_joins,
                       template.resolve_replace,

@@ -158,12 +158,8 @@ class Instance(resource.Resource):
         Return the server's IP address, fetching it from Nova if necessary
         '''
         if self.ipaddress is None:
-            try:
-                server = self.nova().servers.get(self.resource_id)
-            except clients.novaclient.exceptions.NotFound as ex:
-                logger.warn('Instance IP address not found (%s)' % str(ex))
-            else:
-                self._set_ipaddress(server.networks)
+            self.ipaddress = nova_utils.server_to_ipaddress(
+                self.nova(), self.resource_id)
 
         return self.ipaddress or '0.0.0.0'
 
@@ -312,12 +308,9 @@ class Instance(resource.Resource):
                 volume_attach.start()
                 return volume_attach.done()
             elif server.status == 'ERROR':
-                fault = server.fault or {}
+                fault = getattr(server, 'fault', {})
                 message = fault.get('message', 'Unknown')
                 code = fault.get('code', 500)
-                delete = scheduler.TaskRunner(
-                    nova_utils.delete_server, server)
-                delete(wait_time=0.2)
                 exc = exception.Error(_("Build of server %(server)s failed: "
                                         "%(message)s (%(code)s)") %
                                       dict(server=server.name,

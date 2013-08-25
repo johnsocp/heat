@@ -10,6 +10,7 @@
       WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
       License for the specific language governing permissions and limitations
       under the License.
+
 ==================
 Built in functions
 ==================
@@ -64,13 +65,13 @@ Mappings section.
 Parameters
 ~~~~~~~~~~
 map_name : String
-    The logical name of a mapping declared in the Mappings section that 
+    The logical name of a mapping declared in the Mappings section that
     contains the keys and values.
 
 top_level_key : String
     The top-level key name. It's value is a list of key-value pairs.
 
-second_level_key : String 
+second_level_key : String
     The second-level key name, which is set to one of the keys from the list
     assigned to top_level_key.
 
@@ -162,8 +163,8 @@ Select an item from a list.
 Parameters
 ~~~~~~~~~~
 selector : string or integer
-    The number of item in the list or the name of the item in
-the map.
+    The number of item in the list or the name of the item in the map.
+
 collection : map or list
     The collection to select the item from.
 
@@ -174,12 +175,14 @@ For a list lookup:
 ::
 
   { "Fn::Select" : [ "2", [ "apples", "grapes", "mangoes" ] ] }
+
 Returns ``mangoes``
 
 For a map lookup:
 ::
 
   { "Fn::Select" : [ "red", {"red": "a", "flu": "b"} ] }
+
 Returns ``a``
 
 ---------
@@ -219,6 +222,7 @@ string: String
 Usage
 ~~~~~
 ::
+
   {"Fn::Replace": [
    {'$var1': 'foo', '%var2%': 'bar'},
     '$var1 is %var2%'
@@ -290,3 +294,31 @@ To use it
 What happened is the metadata in ``top.yaml`` (key: value, some: more
 stuff) gets passed into the resource template via the `Fn::ResourceFacade`_
 function.
+
+-------------------
+Fn::MemberListToMap
+-------------------
+Convert an AWS style member list into a map.
+
+Parameters
+~~~~~~~~~~
+key name: string
+    The name of the key (normally "Name" or "Key")
+
+value name: string
+    The name of the value (normally "Value")
+
+list: A list of strings
+    The string to convert.
+
+Usage
+~~~~~
+::
+
+  {'Fn::MemberListToMap': ['Name', 'Value', ['.member.0.Name=key',
+                                             '.member.0.Value=door',
+                                             '.member.1.Name=colour',
+                                             '.member.1.Value=green']]}
+
+  returns
+  {'key': 'door', 'colour': 'green'}
